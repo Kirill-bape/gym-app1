@@ -2,7 +2,7 @@
   "expo": {
     "name": "Форма",
     "slug": "forma-gym",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -23,6 +23,17 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "backgroundColor": "#0E0F12"
+    "backgroundColor": "#0E0F12",
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Разреши доступ к фото, чтобы посчитать калории по снимку еды",
+          "cameraPermission": "Разреши доступ к камере, чтобы сфотографировать еду и посчитать калории",
+          "microphonePermission": false
+        }
+      ],
+      "expo-secure-store"
+    ]
   }
 }

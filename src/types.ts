@@ -1,3 +1,5 @@
+import type { ExerciseKey } from './exercises';
+
 export type Goal = 'lose' | 'gain' | 'keep';
 export type Sex = 'male' | 'female';
 export type Activity = 'sedentary' | 'light' | 'moderate' | 'high' | 'extreme';
@@ -13,7 +15,14 @@ export interface Profile {
   targetWeight: number; // кг
   activity: Activity;
   daysPerWeek: number; // 2..6
+  trainingDays?: number[]; // выбранные дни недели, 0 = Пн; нет у старых профилей
   createdAt: string;
+}
+
+export interface Macros {
+  protein: number; // г
+  fat: number; // г
+  carbs: number; // г
 }
 
 export interface FoodEntry {
@@ -21,10 +30,12 @@ export interface FoodEntry {
   name: string;
   kcal: number;
   time: string; // HH:MM
+  macros?: Macros; // есть у записей с фото и быстрых продуктов
 }
 
 export interface Exercise {
   id: string;
+  key: ExerciseKey;
   name: string;
   sets: number;
   reps: string; // "12", "8–10", "45 сек", "25 мин"

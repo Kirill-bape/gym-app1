@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { GOALS, calcForecast, calcNutrition } from '../calc';
+import UpdateBanner from '../components/UpdateBanner';
 import { Card, ProgressBar, Ring, Screen } from '../components/ui';
 import { WEEKDAYS_SHORT, dateKey, humanDate, plural, weekKey, weekdayIndex } from '../dates';
 import { buildPlan, doneSets, totalSets } from '../plan';
@@ -24,6 +25,7 @@ export default function Home({ profile, go }: { profile: Profile; go: (tab: 'foo
 
   return (
     <Screen title={`Привет, ${profile.firstName}`} subtitle={humanDate()}>
+      <UpdateBanner />
       <Pressable onPress={() => go('food')}>
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
           <Ring value={eaten / n.target} size={128} stroke={12} color={left < 0 ? colors.danger : colors.accent}>

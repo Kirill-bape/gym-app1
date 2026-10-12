@@ -3,9 +3,10 @@ import React, { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ACTIVITY, GOALS, calcForecast, calcNutrition } from '../calc';
-import { Button, Card, Chip, Field, Option, ProgressBar, Stat } from '../components/ui';
+import DayPicker from '../components/DayPicker';
+import { Button, Card, Field, Option, ProgressBar, Stat } from '../components/ui';
 import { WEEKDAYS_SHORT, plural } from '../dates';
-import { buildPlan, formatReps } from '../plan';
+import { DEFAULT_DAYS, MAX_DAYS, MIN_DAYS, buildPlan, formatReps, getTrainingDays } from '../plan';
 import { useStore } from '../store';
 import { colors, font, radius, space } from '../theme';
 import { Activity, Goal, Profile, Sex } from '../types';
@@ -31,7 +32,7 @@ export default function Onboarding({ initial, onDone }: { initial?: Profile | nu
   const [weight, setWeight] = useState(initial ? String(initial.weight) : '');
   const [targetWeight, setTargetWeight] = useState(initial ? String(initial.targetWeight) : '');
   const [activity, setActivity] = useState<Activity | null>(initial?.activity ?? null);
-  const [days, setDays] = useState(initial?.daysPerWeek ?? 3);
+  const [days, setDays] = useState<number[]>(initial ? getTrainingDays(initial) : DEFAULT_DAYS[3]);
 
   const valid = [
     true,
@@ -40,7 +41,7 @@ export default function Onboarding({ initial, onDone }: { initial?: Profile | nu
     sex !== null && num(age) >= 12 && num(age) <= 90,
     num(height) >= 120 && num(height) <= 230 && num(weight) >= 30 && num(weight) <= 250 && num(targetWeight) >= 30 && num(targetWeight) <= 250,
     activity !== null,
-    days >= 2 && days <= 6,
+    days.length >= MIN_DAYS && days.length <= MAX_DAYS,
     true,
   ];
 
@@ -56,7 +57,8 @@ export default function Onboarding({ initial, onDone }: { initial?: Profile | nu
       weight: num(weight),
       targetWeight: num(targetWeight),
       activity,
-      daysPerWeek: days,
+      daysPerWeek: days.length,
+      trainingDays: days,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
     };
   }, [firstName, lastName, goal, sex, age, height, weight, targetWeight, activity, days, initial]);
@@ -153,27 +155,8 @@ export default function Onboarding({ initial, onDone }: { initial?: Profile | nu
 
         {step === 6 && (
           <>
-            <Title title="Сколько раз в неделю готов ходить в зал?" hint="Новичкам лучше начать с 3 раз" />
-            <View style={{ flexDirection: 'row', gap: space.sm }}>
-              {[2, 3, 4, 5, 6].map((d) => (
-                <View key={d} style={{ flex: 1 }}>
-                  <Chip label={String(d)} active={days === d} onPress={() => setDays(d)} />
-                </View>
-              ))}
-            </View>
-            <Card>
-              <Text style={font.label}>Дни тренировок</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                {WEEKDAYS_SHORT.map((w, i) => {
-                  const on = buildPlan({ goal: goal ?? 'keep', daysPerWeek: days }).some((d) => d.weekday === i);
-                  return (
-                    <View key={w} style={[styles.dayDot, on && { backgroundColor: colors.accent }]}>
-                      <Text style={{ color: on ? colors.onAccent : colors.muted, fontWeight: '700', fontSize: 12 }}>{w}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </Card>
+            <Title title="В какие дни будешь ходить в зал?" hint="Нажми на дни недели. Новичкам лучше 3 дня с отдыхом между ними" />
+            <DayPicker value={days} onChange={setDays} />
           </>
         )}
 

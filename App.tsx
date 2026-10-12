@@ -55,7 +55,7 @@ function Root() {
     <View style={styles.fill}>
       <View style={{ flex: 1 }}>
         {tab === 'home' && <Home profile={profile} go={setTab} />}
-        {tab === 'food' && <Nutrition profile={profile} />}
+        {tab === 'food' && <Nutrition profile={profile} onOpenSettings={() => setTab('profile')} />}
         {tab === 'train' && <Workouts profile={profile} />}
         {tab === 'profile' && <ProfileScreen profile={profile} onEdit={() => setEditing(true)} />}
       </View>

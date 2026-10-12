@@ -53,3 +53,21 @@ Nutrition / calorie tracker screen. Title "Питание". Card with a large li
 ```
 Profile screen. Title "Кирилл", subtitle "Профиль". Card "ЦЕЛЬ: Сбросить вес" with a 3×2 stats grid: "182 см Рост", "88 кг Вес", "78 кг Цель" (lime), "19 Возраст", "26.6 ИМТ", "3/нед Тренировок". Card "КАК СЧИТАЮТСЯ КАЛОРИИ" with a short explanation. Card "ЗАПИСАТЬ ВЕС" with an input "кг", lime button "Сохранить", and a small weight history list (date + kg), optionally a mini line chart of weight. Secondary button "Изменить данные и цель" and red outline button "Сбросить всё". Bottom tab bar, Профиль active.
 ```
+
+## 8. Карточка упражнения (техника)
+
+```
+Exercise technique detail screen, opens full-screen when you tap an exercise. Big title "Жим штанги лёжа" with a round close button (X) on the right. Large 3:2 photo with 24px rounded corners showing a person doing a bench press, with a small lime pill badge in the bottom-left corner "▶ начало → конец движения". Row of two outline pills: "4 × 12" with a repeat icon and "отдых 60–90 сек" with a timer icon. Card "РАБОТАЮТ МЫШЦЫ": "Основные: грудные мышцы" (label in lime), "Помогают: трицепс, передние дельты" (label in gray). Card "КАК ВЫПОЛНЯТЬ" with 5 numbered steps, each number in a small lime circle. Card "ЧАСТЫЕ ОШИБКИ" with 3 rows, each with a red X-circle icon: "Штанга отбивается от груди", "Таз отрывается от скамьи", "Локти разведены строго в стороны". Tip card with a lime border and a light-bulb icon: "С большим весом жми только со страхующим". Full-width secondary pill button with a YouTube icon "Видео с техникой на YouTube". Tiny gray caption at the bottom "Фото: Free Exercise DB".
+```
+
+## 9. Калории по фото
+
+```
+Two states of a "photo calorie counter" card on the nutrition screen. State 1: card with a lime circle camera icon, title "Калории по фото", subtitle "Сфоткай тарелку, и ИИ оценит калории и БЖУ", and two buttons side by side: lime "Камера" and dark "Галерея". State 2 (result): the same card shows the food photo with rounded corners, a big title "Гречка с курицей и салатом", a small dark pill "средняя точность" and "Б 52 · Ж 14 · У 51 г", a list of detected items with grams and kcal on the right ("Гречка отварная · 200 г · 220 ккал", "Куриная грудка · 150 г · 248 ккал", "Салат с маслом · 120 г · 95 ккал"), a short italic note in gray, an editable input "Калории (можно поправить) 563 ккал", a full-width lime button "+ Добавить в дневник" and a gray text button "Отмена". Also show a loading state with a spinner and text "Считаю калории… обычно 10–30 секунд".
+```
+
+## 10. Выбор дней тренировок
+
+```
+Card "В КАКИЕ ДНИ ХОДИШЬ В ЗАЛ?" with a row of 7 equal rounded-square toggle buttons Пн Вт Ср Чт Пт Сб Вс; selected days (Пн, Ср, Пт) are filled lime with dark text, others are dark with a thin border. Under the row a gray hint "3 тренировки в неделю". Two pill buttons at the bottom: dark "Отмена" and lime "Сохранить". Also design the same day picker as a step of the onboarding questionnaire with the title "В какие дни будешь ходить в зал?" and hint "Новичкам лучше 3 дня с отдыхом между ними".
+```

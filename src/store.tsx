@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { dateKey, timeNow, weekKey } from './dates';
-import { AppData, FoodEntry, Profile } from './types';
+import { deleteApiKey, loadApiKey, saveApiKey } from './secrets';
+import { AppData, FoodEntry, Macros, Profile } from './types';
 
 const KEY = 'forma:data:v1';
 const EMPTY: AppData = { profile: null, food: {}, progress: {}, weights: [] };
@@ -10,11 +11,14 @@ interface Store {
   data: AppData;
   ready: boolean;
   saveProfile: (p: Profile) => void;
-  addFood: (name: string, kcal: number) => void;
+  setTrainingDays: (days: number[]) => void;
+  addFood: (name: string, kcal: number, macros?: Macros) => void;
   removeFood: (id: string) => void;
   tapSet: (exerciseId: string, setIndex: number) => void;
   logWeight: (weight: number) => void;
   resetAll: () => void;
+  aiKey: string | null; // ключ Anthropic API для распознавания еды по фото
+  setAiKey: (key: string | null) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -22,12 +26,21 @@ const Ctx = createContext<Store | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<AppData>(EMPTY);
   const [ready, setReady] = useState(false);
+  const [aiKey, setAiKeyState] = useState<string | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(KEY)
+    const loadData = AsyncStorage.getItem(KEY)
       .then((raw) => raw && setData({ ...EMPTY, ...JSON.parse(raw) }))
-      .catch(() => {})
-      .finally(() => setReady(true));
+      .catch(() => {});
+    const loadKey = loadApiKey()
+      .then(setAiKeyState)
+      .catch(() => {});
+    Promise.all([loadData, loadKey]).finally(() => setReady(true));
+  }, []);
+
+  const setAiKey = useCallback((key: string | null) => {
+    setAiKeyState(key);
+    (key ? saveApiKey(key) : deleteApiKey()).catch(() => {});
   }, []);
 
   const update = useCallback((fn: (d: AppData) => AppData) => {
@@ -47,10 +60,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const weights = d.weights.length ? d.weights : [{ date: dateKey(), weight: p.weight }];
           return { ...d, profile: p, weights };
         }),
-      addFood: (name, kcal) =>
+      setTrainingDays: (days) =>
+        update((d) => {
+          if (!d.profile) return d;
+          const trainingDays = [...days].sort((a, b) => a - b);
+          return { ...d, profile: { ...d.profile, trainingDays, daysPerWeek: trainingDays.length } };
+        }),
+      addFood: (name, kcal, macros) =>
         update((d) => {
           const day = dateKey();
-          const entry: FoodEntry = { id: `${Date.now()}`, name, kcal, time: timeNow() };
+          const entry: FoodEntry = { id: `${Date.now()}`, name, kcal, time: timeNow(), ...(macros ? { macros } : {}) };
           return { ...d, food: { ...d.food, [day]: [...(d.food[day] ?? []), entry] } };
         }),
       removeFood: (id) =>
@@ -73,9 +92,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const weights = [...d.weights.filter((w) => w.date !== today), { date: today, weight }];
           return { ...d, weights, profile: d.profile ? { ...d.profile, weight } : null };
         }),
-      resetAll: () => update(() => EMPTY),
+      resetAll: () => {
+        update(() => EMPTY);
+        setAiKey(null);
+      },
+      aiKey,
+      setAiKey,
     }),
-    [data, ready, update],
+    [data, ready, update, aiKey, setAiKey],
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

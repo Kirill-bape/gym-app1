@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { ACTIVITY, GOALS, bmi, calcNutrition } from '../calc';
+import AiKeyCard from '../components/AiKeyCard';
 import { Button, Card, Field, Screen, Stat } from '../components/ui';
 import { useStore } from '../store';
 import { colors, font, space } from '../theme';
 import { Profile } from '../types';
+import { BUILD_NUMBER } from '../update';
 
 export default function ProfileScreen({ profile, onEdit }: { profile: Profile; onEdit: () => void }) {
   const { data, logWeight, resetAll } = useStore();
@@ -15,7 +17,7 @@ export default function ProfileScreen({ profile, onEdit }: { profile: Profile; o
   const history = [...data.weights].slice(-6).reverse();
 
   const confirmReset = () =>
-    Alert.alert('Сбросить всё?', 'Профиль, питание и прогресс тренировок будут удалены с этого телефона.', [
+    Alert.alert('Сбросить всё?', 'Профиль, питание, прогресс тренировок и ключ ИИ будут удалены с этого телефона.', [
       { text: 'Отмена', style: 'cancel' },
       { text: 'Сбросить', style: 'destructive', onPress: resetAll },
     ]);
@@ -71,8 +73,13 @@ export default function ProfileScreen({ profile, onEdit }: { profile: Profile; o
         ))}
       </Card>
 
+      <AiKeyCard />
+
       <Button title="Изменить данные и цель" variant="secondary" icon="create-outline" onPress={onEdit} />
       <Button title="Сбросить всё" variant="danger" onPress={confirmReset} />
+      <Text style={[font.small, { textAlign: 'center', fontSize: 12 }]}>
+        {BUILD_NUMBER ? `Форма · сборка ${BUILD_NUMBER}` : 'Форма · тестовая версия'}
+      </Text>
     </Screen>
   );
 }

@@ -2,29 +2,36 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { calcNutrition } from '../calc';
-import { Button, Card, Field, Ring, Screen, Stat } from '../components/ui';
+import FoodPhoto from '../components/FoodPhoto';
+import { Button, Card, Field, ProgressBar, Ring, Screen, Stat } from '../components/ui';
 import { dateKey } from '../dates';
 import { useStore } from '../store';
 import { colors, font, radius, space } from '../theme';
-import { Profile } from '../types';
+import { Macros, Profile } from '../types';
 
-const QUICK: [string, number][] = [
-  ['Овсянка 60 г', 225],
-  ['Яйца, 2 шт', 155],
-  ['Куриная грудка 150 г', 165],
-  ['Гречка 200 г', 220],
-  ['Рис 200 г', 260],
-  ['Творог 5% 200 г', 240],
-  ['Протеин, порция', 120],
-  ['Банан', 105],
-  ['Яблоко', 80],
+// [название, ккал, белки, жиры, углеводы]
+const QUICK: [string, number, number, number, number][] = [
+  ['Овсянка 60 г', 225, 8, 4, 36],
+  ['Яйца, 2 шт', 155, 13, 11, 1],
+  ['Куриная грудка 150 г', 165, 35, 2, 0],
+  ['Гречка 200 г', 220, 8, 2, 40],
+  ['Рис 200 г', 260, 5, 1, 57],
+  ['Творог 5% 200 г', 240, 34, 10, 6],
+  ['Протеин, порция', 120, 24, 2, 3],
+  ['Банан', 105, 1, 0, 27],
+  ['Яблоко', 80, 0, 0, 21],
 ];
 
-export default function Nutrition({ profile }: { profile: Profile }) {
+export default function Nutrition({ profile, onOpenSettings }: { profile: Profile; onOpenSettings: () => void }) {
   const { data, addFood, removeFood } = useStore();
   const n = calcNutrition(profile);
   const entries = data.food[dateKey()] ?? [];
   const eaten = entries.reduce((s, e) => s + e.kcal, 0);
+  const macros = entries.reduce<Macros>(
+    (s, e) => (e.macros ? { protein: s.protein + e.macros.protein, fat: s.fat + e.macros.fat, carbs: s.carbs + e.macros.carbs } : s),
+    { protein: 0, fat: 0, carbs: 0 },
+  );
+  const withoutMacros = entries.filter((e) => !e.macros).length;
   const [name, setName] = useState('');
   const [kcal, setKcal] = useState('');
 
@@ -56,14 +63,18 @@ export default function Nutrition({ profile }: { profile: Profile }) {
           </View>
         </Card>
 
+        <FoodPhoto onOpenSettings={onOpenSettings} />
+
         <Card>
-          <Text style={font.label}>Цель по БЖУ на день</Text>
-          <View style={{ flexDirection: 'row' }}>
-            <Stat label="Белки" value={`${n.protein} г`} color={colors.blue} />
-            <Stat label="Жиры" value={`${n.fat} г`} color={colors.orange} />
-            <Stat label="Углеводы" value={`${n.carbs} г`} color={colors.pink} />
-          </View>
-          <Text style={font.small}>Белок помогает сохранить мышцы на дефиците и растить их на наборе.</Text>
+          <Text style={font.label}>БЖУ за день</Text>
+          <MacroRow label="Белки" eaten={macros.protein} target={n.protein} color={colors.blue} />
+          <MacroRow label="Жиры" eaten={macros.fat} target={n.fat} color={colors.orange} />
+          <MacroRow label="Углеводы" eaten={macros.carbs} target={n.carbs} color={colors.pink} />
+          <Text style={font.small}>
+            {withoutMacros > 0
+              ? `БЖУ считается по фото и быстрым продуктам. Записей без БЖУ сегодня: ${withoutMacros}.`
+              : 'Белок помогает сохранить мышцы на дефиците и растить их на наборе.'}
+          </Text>
         </Card>
 
         <Card>
@@ -73,10 +84,10 @@ export default function Nutrition({ profile }: { profile: Profile }) {
           <Button title="Добавить" icon="add" onPress={add} disabled={!canAdd} />
           <Text style={[font.small, { marginTop: space.sm }]}>Быстро добавить</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.sm, alignItems: 'flex-start' }}>
-            {QUICK.map(([qn, qk]) => (
+            {QUICK.map(([qn, qk, protein, fat, carbs]) => (
               <Pressable
                 key={qn}
-                onPress={() => addFood(qn, qk)}
+                onPress={() => addFood(qn, qk, { protein, fat, carbs })}
                 style={{ backgroundColor: colors.cardAlt, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md }}
               >
                 <Text style={[font.body, { fontWeight: '600' }]}>{qn}</Text>
@@ -94,9 +105,16 @@ export default function Nutrition({ profile }: { profile: Profile }) {
             [...entries].reverse().map((e) => (
               <View key={e.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                 <Text style={[font.small, { width: 44 }]}>{e.time}</Text>
-                <Text style={[font.body, { flex: 1 }]} numberOfLines={1}>
-                  {e.name}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={font.body} numberOfLines={1}>
+                    {e.name}
+                  </Text>
+                  {e.macros ? (
+                    <Text style={[font.small, { fontSize: 12 }]}>
+                      Б {e.macros.protein} · Ж {e.macros.fat} · У {e.macros.carbs}
+                    </Text>
+                  ) : null}
+                </View>
                 <Text style={[font.body, { fontWeight: '700' }]}>{e.kcal}</Text>
                 <Pressable onPress={() => removeFood(e.id)} hitSlop={10}>
                   <Ionicons name="close-circle" size={20} color={colors.muted} />
@@ -107,5 +125,19 @@ export default function Nutrition({ profile }: { profile: Profile }) {
         </Card>
       </Screen>
     </KeyboardAvoidingView>
+  );
+}
+
+function MacroRow({ label, eaten, target, color }: { label: string; eaten: number; target: number; color: string }) {
+  return (
+    <View style={{ gap: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={[font.body, { fontWeight: '600' }]}>{label}</Text>
+        <Text style={font.small}>
+          <Text style={{ color, fontWeight: '700' }}>{Math.round(eaten)}</Text> из {target} г
+        </Text>
+      </View>
+      <ProgressBar value={target > 0 ? eaten / target : 0} color={color} height={6} />
+    </View>
   );
 }

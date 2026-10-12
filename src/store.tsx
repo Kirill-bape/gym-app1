@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { dateKey, timeNow, weekKey } from './dates';
-import { deleteApiKey, loadApiKey, saveApiKey } from './secrets';
+import type { AiConfig } from './ai';
+import { loadAiConfig, saveAiConfig } from './secrets';
 import { AppData, FoodEntry, Macros, Profile } from './types';
 
 const KEY = 'forma:data:v1';
@@ -17,8 +18,8 @@ interface Store {
   tapSet: (exerciseId: string, setIndex: number) => void;
   logWeight: (weight: number) => void;
   resetAll: () => void;
-  aiKey: string | null; // ключ Anthropic API для распознавания еды по фото
-  setAiKey: (key: string | null) => void;
+  ai: AiConfig | null; // какая нейросеть считает калории по фото
+  setAi: (config: AiConfig | null) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -26,21 +27,21 @@ const Ctx = createContext<Store | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<AppData>(EMPTY);
   const [ready, setReady] = useState(false);
-  const [aiKey, setAiKeyState] = useState<string | null>(null);
+  const [ai, setAiState] = useState<AiConfig | null>(null);
 
   useEffect(() => {
     const loadData = AsyncStorage.getItem(KEY)
       .then((raw) => raw && setData({ ...EMPTY, ...JSON.parse(raw) }))
       .catch(() => {});
-    const loadKey = loadApiKey()
-      .then(setAiKeyState)
+    const loadAi = loadAiConfig()
+      .then(setAiState)
       .catch(() => {});
-    Promise.all([loadData, loadKey]).finally(() => setReady(true));
+    Promise.all([loadData, loadAi]).finally(() => setReady(true));
   }, []);
 
-  const setAiKey = useCallback((key: string | null) => {
-    setAiKeyState(key);
-    (key ? saveApiKey(key) : deleteApiKey()).catch(() => {});
+  const setAi = useCallback((config: AiConfig | null) => {
+    setAiState(config);
+    saveAiConfig(config).catch(() => {});
   }, []);
 
   const update = useCallback((fn: (d: AppData) => AppData) => {
@@ -94,12 +95,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }),
       resetAll: () => {
         update(() => EMPTY);
-        setAiKey(null);
+        setAi(null);
       },
-      aiKey,
-      setAiKey,
+      ai,
+      setAi,
     }),
-    [data, ready, update, aiKey, setAiKey],
+    [data, ready, update, ai, setAi],
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

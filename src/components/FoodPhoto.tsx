@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { AI_ERROR_TEXT, FoodEstimate, FoodPhotoError, estimateFoodPhoto } from '../ai';
+import { FoodEstimate, FoodPhotoError, PROVIDER_NAMES, activeModel, aiErrorText, estimateFoodPhoto, isAiReady } from '../ai';
 import { CameraDeniedError, PickedPhoto, pickFoodPhoto } from '../photo';
 import { useStore } from '../store';
 import { colors, font, radius, space } from '../theme';
@@ -11,14 +11,15 @@ type State =
   | { kind: 'idle' }
   | { kind: 'picked'; photo: PickedPhoto }
   | { kind: 'loading'; photo: PickedPhoto }
-  | { kind: 'done'; photo: PickedPhoto; result: FoodEstimate }
+  | { kind: 'done'; photo: PickedPhoto; result: FoodEstimate; source: string }
   | { kind: 'error'; photo: PickedPhoto | null; message: string; openSettings?: boolean };
 
 const CONFIDENCE = { low: 'примерно', medium: 'средняя точность', high: 'высокая точность' };
 
 // Фото еды → оценка калорий и БЖУ → запись в дневник
 export default function FoodPhoto({ onOpenSettings }: { onOpenSettings: () => void }) {
-  const { aiKey, addFood } = useStore();
+  const { ai, addFood } = useStore();
+  const ready = isAiReady(ai);
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [hint, setHint] = useState('');
   const [kcal, setKcal] = useState('');
@@ -40,17 +41,22 @@ export default function FoodPhoto({ onOpenSettings }: { onOpenSettings: () => vo
   };
 
   const analyze = async (photo: PickedPhoto) => {
-    if (!aiKey) return;
+    if (!isAiReady(ai)) return;
     setState({ kind: 'loading', photo });
     try {
-      const result = await estimateFoodPhoto(aiKey, photo.base64, hint);
+      const result = await estimateFoodPhoto(ai, photo.base64, hint);
       setKcal(String(Math.round(result.total_kcal)));
-      setState({ kind: 'done', photo, result });
+      setState({ kind: 'done', photo, result, source: `${PROVIDER_NAMES[ai.provider]} · ${activeModel(ai)}` });
     } catch (e) {
       const reason = e instanceof FoodPhotoError ? e.reason : 'other';
       // Для непонятных ошибок показываем текст, чтобы его можно было прислать скриншотом
       const detail = reason === 'other' && e instanceof Error ? ` ${e.message}` : '';
-      setState({ kind: 'error', photo, message: AI_ERROR_TEXT[reason] + detail, openSettings: reason === 'auth' || reason === 'forbidden' });
+      setState({
+        kind: 'error',
+        photo,
+        message: aiErrorText(reason, ai.provider) + detail,
+        openSettings: reason === 'auth' || reason === 'forbidden' || reason === 'model',
+      });
     }
   };
 
@@ -75,14 +81,14 @@ export default function FoodPhoto({ onOpenSettings }: { onOpenSettings: () => vo
         </View>
         <View style={{ flex: 1 }}>
           <Text style={font.h3}>Калории по фото</Text>
-          <Text style={font.small}>Сфоткай тарелку, и ИИ оценит калории и БЖУ</Text>
+          <Text style={font.small}>Сфоткай тарелку, и нейросеть оценит калории и БЖУ</Text>
         </View>
       </View>
 
-      {!aiKey ? (
+      {!ready ? (
         <>
-          <Text style={font.small}>Чтобы это заработало, нужно один раз добавить ключ ИИ в профиле.</Text>
-          <Button title="Подключить в профиле" variant="secondary" icon="key-outline" onPress={onOpenSettings} />
+          <Text style={font.small}>Чтобы это заработало, один раз выбери нейросеть в профиле. Есть бесплатные варианты.</Text>
+          <Button title="Настроить в профиле" variant="secondary" icon="settings-outline" onPress={onOpenSettings} />
         </>
       ) : state.kind === 'idle' ? (
         <View style={{ flexDirection: 'row', gap: space.md }}>
@@ -95,9 +101,9 @@ export default function FoodPhoto({ onOpenSettings }: { onOpenSettings: () => vo
         </View>
       ) : null}
 
-      {aiKey && state.kind !== 'idle' && state.photo ? <Image source={{ uri: state.photo.uri }} style={styles.preview} resizeMode="cover" /> : null}
+      {ready && state.kind !== 'idle' && state.photo ? <Image source={{ uri: state.photo.uri }} style={styles.preview} resizeMode="cover" /> : null}
 
-      {aiKey && state.kind === 'picked' ? (
+      {ready && state.kind === 'picked' ? (
         <>
           <Field label="Уточнение (необязательно)" value={hint} onChangeText={setHint} placeholder="Например: порция 300 г, жарено на масле" />
           <Button title="Посчитать калории" icon="sparkles-outline" onPress={() => analyze(state.photo)} />
@@ -107,16 +113,27 @@ export default function FoodPhoto({ onOpenSettings }: { onOpenSettings: () => vo
         </>
       ) : null}
 
-      {aiKey && state.kind === 'loading' ? (
+      {ready && state.kind === 'loading' ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm }}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={font.body}>Считаю калории… обычно 10–30 секунд</Text>
+          <Text style={[font.body, { flex: 1 }]}>
+            {ai.provider === 'ollama-local'
+              ? 'Считаю на твоём компьютере… первый раз может занять минуту'
+              : 'Считаю калории… обычно 10–30 секунд'}
+          </Text>
         </View>
       ) : null}
 
-      {aiKey && state.kind === 'done' ? (
+      {ready && state.kind === 'done' ? (
         state.result.is_food ? (
-          <Result result={state.result} kcal={kcal} setKcal={setKcal} onSave={() => save(state.result)} onCancel={reset} />
+          <Result
+            result={state.result}
+            source={state.source}
+            kcal={kcal}
+            setKcal={setKcal}
+            onSave={() => save(state.result)}
+            onCancel={reset}
+          />
         ) : (
           <>
             <Text style={font.body}>На фото не видно еды. Попробуй сфотографировать тарелку поближе.</Text>
@@ -129,7 +146,7 @@ export default function FoodPhoto({ onOpenSettings }: { onOpenSettings: () => vo
         <>
           <Text style={[font.body, { color: colors.orange }]}>{state.message}</Text>
           {state.openSettings ? <Button title="Открыть профиль" variant="secondary" onPress={onOpenSettings} /> : null}
-          {state.photo && aiKey ? (
+          {state.photo && ready ? (
             <Button title="Попробовать ещё раз" onPress={() => analyze(state.photo!)} />
           ) : (
             <Button title="Понятно" variant="secondary" onPress={reset} />
@@ -147,12 +164,14 @@ export default function FoodPhoto({ onOpenSettings }: { onOpenSettings: () => vo
 
 function Result({
   result,
+  source,
   kcal,
   setKcal,
   onSave,
   onCancel,
 }: {
   result: FoodEstimate;
+  source: string;
   kcal: string;
   setKcal: (v: string) => void;
   onSave: () => void;
@@ -179,6 +198,7 @@ function Result({
         </View>
       ))}
       {result.note ? <Text style={[font.small, { fontStyle: 'italic' }]}>{result.note}</Text> : null}
+      <Text style={[font.small, { fontSize: 11 }]}>Посчитано: {source}</Text>
       <Field label="Калории (можно поправить)" value={kcal} onChangeText={setKcal} keyboardType="number-pad" suffix="ккал" />
       <Button title="Добавить в дневник" icon="add" onPress={onSave} disabled={!(Number(kcal) > 0)} />
       <Pressable onPress={onCancel} hitSlop={8} style={{ alignSelf: 'center' }}>
